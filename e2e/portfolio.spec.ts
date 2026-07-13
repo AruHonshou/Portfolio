@@ -183,6 +183,48 @@ test("about identity panel responds to the pointer without affecting layout", as
   expect(overflow).toBe(false);
 });
 
+test("project covers have distinct kinetic visuals and pointer response", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "desktop kinetic project visuals");
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.goto("/es");
+  await expect(page.getByRole("button", { name: "EN", exact: true })).toBeEnabled();
+  const visuals = page.getByTestId("project-visual");
+  await expect(visuals).toHaveCount(6);
+  const variants = await visuals.evaluateAll((covers) => covers.map((cover) => cover.getAttribute("data-project-visual")));
+  expect(variants).toEqual(["1", "2", "3", "4", "5", "6"]);
+  const visibleCodes = await page.locator(".project-kinetic small").allTextContents();
+  expect(visibleCodes.every((code) => !/\d/.test(code))).toBe(true);
+  const animationNames = await page.locator(".project-cover .kinetic-orbit").evaluateAll((orbits) => orbits.map((orbit) => getComputedStyle(orbit).animationName));
+  expect(animationNames.every((name) => name === "project-orbit")).toBe(true);
+
+  const firstVisual = visuals.first();
+  await firstVisual.scrollIntoViewIfNeeded();
+  const bounds = await firstVisual.boundingBox();
+  expect(bounds).not.toBeNull();
+  await firstVisual.dispatchEvent("pointermove", {
+    clientX: bounds!.x + bounds!.width * 0.74,
+    clientY: bounds!.y + bounds!.height * 0.31,
+  });
+  const focus = await firstVisual.evaluate((element) => getComputedStyle(element).getPropertyValue("--project-x"));
+  expect(Number.parseFloat(focus)).toBeCloseTo(74, 0);
+});
+
+test("contact production headline keeps its final letter in both languages", async ({ page }) => {
+  for (const locale of ["es", "en"]) {
+    await page.goto(`/${locale}`);
+    const title = page.locator("#contact-title");
+    await title.scrollIntoViewIfNeeded();
+    await expect(title).toHaveAttribute("data-motion-state", "complete", { timeout: 4_000 });
+    const measurement = await title.evaluate((element) => ({
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+      label: element.getAttribute("aria-label"),
+    }));
+    expect(measurement.scrollWidth).toBeLessThanOrEqual(measurement.clientWidth + 1);
+    expect(measurement.label).toBe(locale === "es" ? "Llevemos tu próximo producto a producción." : "Let's take your next product to production.");
+  }
+});
+
 test("long project titles stay intact in both languages", async ({ page }, testInfo) => {
   for (const locale of ["es", "en"]) {
     await page.goto(`/${locale}`);
@@ -211,6 +253,7 @@ test("reduced motion and WebGL fallback preserve content", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Projects" })).toBeVisible();
   await expect(page.locator("#hero-title")).toHaveAttribute("data-motion-state", "static");
   await expect(page.locator(".motion-char")).toHaveCount(0);
+  await expect(page.locator(".project-cover .kinetic-orbit").first()).toHaveCSS("animation-name", "none");
   await page.locator("canvas").evaluate((canvas) => canvas.dispatchEvent(new Event("webglcontextlost", { cancelable: true })));
   await expect(page.getByRole("heading", { name: "Let's take your next product to production." })).toBeVisible();
 });

@@ -104,6 +104,52 @@ function IdentityPanel({ reduced }: { reduced: boolean }) {
   </div>;
 }
 
+function ProjectCover({ name, projectCode, index, preset, reduced }: { name: string; projectCode: string; index: number; preset: MotionPreset; reduced: boolean }) {
+  const coverRef = useRef<HTMLDivElement>(null);
+
+  const moveVisual = (clientX: number, clientY: number) => {
+    const cover = coverRef.current;
+    if (!cover || reduced) return;
+    const bounds = cover.getBoundingClientRect();
+    const x = Math.min(Math.max((clientX - bounds.left) / bounds.width, 0), 1);
+    const y = Math.min(Math.max((clientY - bounds.top) / bounds.height, 0), 1);
+    cover.style.setProperty("--project-x", `${x * 100}%`);
+    cover.style.setProperty("--project-y", `${y * 100}%`);
+    cover.style.setProperty("--project-tilt-x", `${(x - 0.5) * 16}px`);
+    cover.style.setProperty("--project-tilt-y", `${(y - 0.5) * 16}px`);
+  };
+
+  const resetVisual = () => {
+    const cover = coverRef.current;
+    if (!cover) return;
+    cover.style.setProperty("--project-x", "50%");
+    cover.style.setProperty("--project-y", "50%");
+    cover.style.setProperty("--project-tilt-x", "0px");
+    cover.style.setProperty("--project-tilt-y", "0px");
+  };
+
+  return <div
+    ref={coverRef}
+    className="project-cover"
+    data-project-visual={String((index % 6) + 1)}
+    data-testid="project-visual"
+    onPointerMove={(event) => moveVisual(event.clientX, event.clientY)}
+    onPointerLeave={resetVisual}
+    aria-hidden="true"
+  >
+    <MotionTitle as="strong" text={name} preset={preset} intensity="subtle" reduced={reduced} decorative />
+    <div className="project-kinetic">
+      <span className="kinetic-orbit" />
+      <span className="kinetic-frame" />
+      <span className="kinetic-axis" />
+      <span className="kinetic-node node-a" />
+      <span className="kinetic-node node-b" />
+      <small>{projectCode} / SYS</small>
+    </div>
+    <i className="project-signal" />
+  </div>;
+}
+
 function DetailList({ title, items }: { title: string; items?: string[] }) {
   if (!items?.length) return null;
   return <section className="timeline-detail"><h4>{title}</h4><ul>{items.map((item) => <li key={item}>{item}</li>)}</ul></section>;
@@ -155,7 +201,7 @@ function ProjectStory({ content, locale, reduced }: { content: PortfolioContent;
   return <section id="projects" className="projects-story" ref={storyRef} aria-labelledby="projects-title">
     <div className="projects-sticky"><div className="projects-header"><SectionHeading id="projects-title" preset="flip" reduced={reduced}>{labels[locale].projects}</SectionHeading><span className="project-progress" aria-hidden="true" /></div>
       <div className="project-track" ref={trackRef}>{content.projects.map((project, index) => { const preset = titlePresets[index % titlePresets.length]; return <article className="project-card" data-title-size={projectTitleSize(project.name)} key={project.id}>
-        <div className={`project-cover cover-${(index % 3) + 1}`} aria-hidden="true"><MotionTitle as="strong" text={project.name} preset={preset} intensity="subtle" reduced={reduced} decorative /><i /></div>
+        <ProjectCover name={project.name} projectCode={project.id.toUpperCase()} index={index} preset={preset} reduced={reduced} />
         <div className="project-body"><div><p className="eyebrow">{project.type}</p><MotionTitle as="h3" text={project.name} preset={preset} intensity="subtle" reduced={reduced} /></div><p>{project.summary}</p>{project.impact && <p className="project-impact">{project.impact}</p>}
           <ul className="tech-list">{project.technologies.map((tech) => <li key={tech}>{tech}</li>)}</ul>
           <footer><span>{labels[locale].status}: {project.status}</span><div>{project.links.map((link) => <a href={link.href} target="_blank" rel="noreferrer" key={link.href}>{link.label}<ArrowUpRight size={15} aria-hidden="true" /></a>)}</div></footer>
