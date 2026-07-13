@@ -38,7 +38,7 @@ function prepareCharacters(characters: HTMLElement[], preset: MotionPreset, inte
     if (preset === "scale") character.style.transform = `scale(${intensity === "subtle" ? 0.55 : 0.2}) rotateZ(${intensity === "subtle" ? 16 : 30}deg)`;
     if (preset === "blur") {
       character.style.filter = `blur(${blur}px)`;
-      character.style.letterSpacing = intensity === "subtle" ? ".12em" : ".28em";
+      if (intensity !== "section") character.style.letterSpacing = intensity === "subtle" ? ".12em" : ".28em";
     }
     if (preset === "flip") character.style.transform = `rotateX(-${intensity === "subtle" ? 72 : 105}deg)`;
   });
@@ -51,7 +51,7 @@ function playCharacters(characters: HTMLElement[], preset: MotionPreset, intensi
   if (preset === "rise") return animate(characters, { ...shared, translateY: "0%", delay: stagger(timing.stagger) });
   if (preset === "fall") return animate(characters, { ...shared, translateY: "0%", rotateZ: 0, delay: stagger(timing.stagger, { from: "last" }) });
   if (preset === "scale") return animate(characters, { ...shared, scale: 1, rotateZ: 0, delay: stagger(timing.stagger, { from: "center" }) });
-  if (preset === "blur") return animate(characters, { ...shared, filter: "blur(0px)", letterSpacing: "0em", delay: stagger(timing.stagger) });
+  if (preset === "blur") return animate(characters, { ...shared, filter: "blur(0px)", ...(intensity === "section" ? {} : { letterSpacing: "0em" }), delay: stagger(timing.stagger) });
   return animate(characters, { ...shared, rotateX: 0, delay: stagger(timing.stagger, { from: "center" }) });
 }
 

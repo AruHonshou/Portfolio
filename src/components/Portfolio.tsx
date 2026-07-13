@@ -128,7 +128,8 @@ export function Portfolio({ initialLocale }: { initialLocale: Locale }) {
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const content = locale === "es" ? portfolioEs : portfolioEn;
   const copy = labels[locale];
-  const nameParts = useMemo(() => content.name.split(" "), [content.name]);
+  const displayName = useMemo(() => content.name.replace("Díaz", "Diaz"), [content.name]);
+  const nameParts = useMemo(() => displayName.split(" "), [displayName]);
 
   useEffect(() => { document.documentElement.dataset.motion = reduced ? "reduced" : "full"; }, [reduced]);
   useEffect(() => { window.localStorage.setItem("portfolio-language", locale); updateSeo(locale, content); }, [locale, content]);
@@ -174,7 +175,7 @@ export function Portfolio({ initialLocale }: { initialLocale: Locale }) {
     <main id="main">
       <section id="hero" className="hero" aria-labelledby="hero-title">
         <div className="hero-meta"><span>CR / 09.93° N</span><span>{content.role}</span></div>
-        <MotionTitle as="h1" id="hero-title" text={content.name} lines={nameParts} preset="blur" intensity="hero" reduced={reduced} trigger="load" />
+        <MotionTitle as="h1" id="hero-title" text={displayName} lines={nameParts} preset="blur" intensity="hero" reduced={reduced} trigger="load" />
         <div className="hero-bottom"><p>{content.intro}</p><div className="hero-actions"><a className="button primary" href="#projects" onPointerEnter={() => emitFluidImpulse(active, 8)}>{copy.viewProjects}<ArrowDown size={17} aria-hidden="true" /></a><a className="button secondary" href="#contact" onPointerEnter={() => emitFluidImpulse(active, 9)}>{copy.contact}<ArrowUpRight size={17} aria-hidden="true" /></a></div></div>
         <a className="scroll-cue" href="#about"><span>{copy.scroll}</span><ArrowDown size={16} aria-hidden="true" /></a>
       </section>

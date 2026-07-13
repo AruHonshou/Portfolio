@@ -92,7 +92,7 @@ test("motion titles use the planned hierarchy and settle accessibly", async ({ p
   await page.goto("/es");
   const hero = page.locator("#hero-title");
   await expect(hero).toHaveAttribute("data-motion-preset", "blur");
-  await expect(hero).toHaveAttribute("aria-label", "Kendall Valverde Díaz");
+  await expect(hero).toHaveAttribute("aria-label", "Kendall Valverde Diaz");
   await expect(hero).toHaveAttribute("data-motion-state", "complete", { timeout: 4_000 });
   await expect(hero).toHaveCSS("font-family", /Outfit Variable/);
   expect(await hero.locator(".motion-char").count()).toBeGreaterThan(10);
@@ -122,6 +122,15 @@ test("motion titles use the planned hierarchy and settle accessibly", async ({ p
   expect(settled).toBe(true);
   await expect(page.locator("#skills .section-heading")).toHaveAttribute("data-motion-state", "complete");
   await expect(page.getByRole("heading", { name: "Capacidades", exact: true })).toBeVisible();
+
+  await page.locator("#contact").evaluate((element) => {
+    document.documentElement.style.scrollBehavior = "auto";
+    element.scrollIntoView({ block: "start" });
+  });
+  const contactLines = await page.locator("#contact-title").evaluate((title) => Array.from(title.querySelectorAll<HTMLElement>(".motion-word")).map((word) => ({ text: word.textContent?.toLowerCase(), top: Math.round(word.getBoundingClientRect().top) })));
+  const algo = contactLines.find((word) => word.text === "algo");
+  const useful = contactLines.find((word) => word.text === "util.");
+  expect(algo?.top).toBe(useful?.top);
 });
 
 test("long project titles stay intact in both languages", async ({ page }, testInfo) => {
