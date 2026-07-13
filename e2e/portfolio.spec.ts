@@ -87,6 +87,43 @@ test("fluid readability profile follows dense and protected sections", async ({ 
   await expect(canvas).toHaveAttribute("data-fluid-context", "contact");
 });
 
+test("motion titles use the planned hierarchy and settle accessibly", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "desktop motion timing");
+  await page.goto("/es");
+  const hero = page.locator("#hero-title");
+  await expect(hero).toHaveAttribute("data-motion-preset", "blur");
+  await expect(hero).toHaveAttribute("aria-label", "Kendall Valverde Díaz");
+  await expect(hero).toHaveAttribute("data-motion-state", "complete", { timeout: 4_000 });
+  await expect(hero).toHaveCSS("font-family", /Outfit Variable/);
+  expect(await hero.locator(".motion-char").count()).toBeGreaterThan(10);
+
+  const sectionPresets = {
+    "about-title": "rise",
+    "skills-title": "scale",
+    "projects-title": "flip",
+    "experience-title": "fall",
+    "education-title": "rise",
+    "certifications-title": "scale",
+  } as const;
+  for (const [id, preset] of Object.entries(sectionPresets)) {
+    await expect(page.locator(`#${id}`)).toHaveAttribute("data-motion-preset", preset);
+  }
+
+  const presets = await page.locator(".skill-grid").evaluate((grid) => Array.from(new Set(Array.from(grid.querySelectorAll<HTMLElement>("h3")).map((title) => title.dataset.motionPreset))));
+  expect(presets.sort()).toEqual(["blur", "fall", "flip", "rise", "scale"]);
+
+  await page.locator("#skills").evaluate((element) => element.scrollIntoView({ block: "start" }));
+  const skillsTitle = page.locator("#skills-title");
+  await expect(skillsTitle).toHaveAttribute("data-motion-state", "complete", { timeout: 4_000 });
+  const settled = await skillsTitle.evaluate((title) => Array.from(title.querySelectorAll<HTMLElement>(".motion-char")).every((character) => {
+    const style = getComputedStyle(character);
+    return style.opacity === "1" && (style.transform === "none" || style.transform === "matrix(1, 0, 0, 1, 0, 0)") && (style.filter === "none" || style.filter === "blur(0px)");
+  }));
+  expect(settled).toBe(true);
+  await expect(page.locator("#skills .section-heading")).toHaveAttribute("data-motion-state", "complete");
+  await expect(page.getByRole("heading", { name: "Capacidades", exact: true })).toBeVisible();
+});
+
 test("long project titles stay intact in both languages", async ({ page }, testInfo) => {
   for (const locale of ["es", "en"]) {
     await page.goto(`/${locale}`);
@@ -113,6 +150,8 @@ test("reduced motion and WebGL fallback preserve content", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/en");
   await expect(page.getByRole("heading", { name: "Projects" })).toBeVisible();
+  await expect(page.locator("#hero-title")).toHaveAttribute("data-motion-state", "static");
+  await expect(page.locator(".motion-char")).toHaveCount(0);
   await page.locator("canvas").evaluate((canvas) => canvas.dispatchEvent(new Event("webglcontextlost", { cancelable: true })));
   await expect(page.getByRole("heading", { name: "Let's build something useful." })).toBeVisible();
 });

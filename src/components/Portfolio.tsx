@@ -1,17 +1,18 @@
 "use client";
 
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { animate, stagger } from "animejs";
 import { ArrowDown, ArrowUpRight, Github, Linkedin, Mail, Menu, MessageCircle, Minus, X } from "lucide-react";
 import { portfolioEs } from "../generated/portfolio-content.es";
 import { portfolioEn } from "../content/translations/portfolio.en";
 import type { Locale, PortfolioContent, TimelineItem } from "../content/types";
 import { labels } from "../i18n/labels";
 import { GraphicsBoundary } from "./GraphicsBoundary";
+import { MotionTitle, type MotionPreset } from "./MotionTitle";
 
 const FluidBackground = lazy(() => import("../graphics/fluid/FluidBackground"));
 const sections = ["about", "skills", "projects", "experience", "education", "certifications", "contact"] as const;
 const navigationSections = sections.filter((section) => section !== "contact");
+const titlePresets: MotionPreset[] = ["rise", "fall", "scale", "blur", "flip"];
 const subscribeToHydration = () => () => {};
 
 function updateSeo(locale: Locale, content: PortfolioContent) {
@@ -53,8 +54,8 @@ function useReducedMotion() {
   return [reduced, toggle] as const;
 }
 
-function SectionHeading({ id, children }: { id: string; children: string }) {
-  return <header className="section-heading"><h2 id={id}>{children}</h2><div aria-hidden="true" /></header>;
+function SectionHeading({ id, children, preset, reduced }: { id: string; children: string; preset: MotionPreset; reduced: boolean }) {
+  return <header className="section-heading" data-motion-state={reduced ? "static" : "pending"}><MotionTitle as="h2" id={id} text={children} preset={preset} intensity="section" reduced={reduced} syncRule /><div aria-hidden="true" /></header>;
 }
 
 function DetailList({ title, items }: { title: string; items?: string[] }) {
@@ -62,14 +63,14 @@ function DetailList({ title, items }: { title: string; items?: string[] }) {
   return <section className="timeline-detail"><h4>{title}</h4><ul>{items.map((item) => <li key={item}>{item}</li>)}</ul></section>;
 }
 
-function Timeline({ items, locale }: { items: TimelineItem[]; locale: Locale }) {
+function Timeline({ items, locale, preset, reduced }: { items: TimelineItem[]; locale: Locale; preset: MotionPreset; reduced: boolean }) {
   const copy = labels[locale];
   return <div className="timeline">
     <svg className="timeline-line" viewBox="0 0 40 1000" preserveAspectRatio="none" aria-hidden="true"><path d="M20 0 V1000" /></svg>
     <div className="timeline-items">{items.map((item) => <article className="timeline-item" key={item.id}>
       <span className="timeline-dot" aria-hidden="true" />
       <div className="timeline-content">
-        <p className="eyebrow">{item.period}</p><h3>{item.title}</h3><p className="organization">{item.organization}</p><p className="timeline-summary">{item.summary}</p>
+        <p className="eyebrow">{item.period}</p><MotionTitle as="h3" text={item.title} preset={preset} intensity="subtle" reduced={reduced} /><p className="organization">{item.organization}</p><p className="timeline-summary">{item.summary}</p>
         {item.highlights.length > 0 && <ul className="timeline-highlights">{item.highlights.map((highlight) => <li key={highlight}>{highlight}</li>)}</ul>}
         {(item.responsibilities?.length || item.results?.length) && <div className="timeline-detail-grid"><DetailList title={copy.responsibilities} items={item.responsibilities} /><DetailList title={copy.results} items={item.results} /></div>}
         {item.technologies?.length && <div className="timeline-tools"><h4>{copy.tools}</h4><ul className="tech-list">{item.technologies.map((tech) => <li key={tech}>{tech}</li>)}</ul></div>}
@@ -106,14 +107,14 @@ function ProjectStory({ content, locale, reduced }: { content: PortfolioContent;
   }, [content.projects.length, reduced]);
 
   return <section id="projects" className="projects-story" ref={storyRef} aria-labelledby="projects-title">
-    <div className="projects-sticky"><div className="projects-header"><SectionHeading id="projects-title">{labels[locale].projects}</SectionHeading><span className="project-progress" aria-hidden="true" /></div>
-      <div className="project-track" ref={trackRef}>{content.projects.map((project, index) => <article className="project-card" data-title-size={projectTitleSize(project.name)} key={project.id}>
-        <div className={`project-cover cover-${(index % 3) + 1}`} aria-hidden="true"><strong>{project.name}</strong><i /></div>
-        <div className="project-body"><div><p className="eyebrow">{project.type}</p><h3>{project.name}</h3></div><p>{project.summary}</p>{project.impact && <p className="project-impact">{project.impact}</p>}
+    <div className="projects-sticky"><div className="projects-header"><SectionHeading id="projects-title" preset="flip" reduced={reduced}>{labels[locale].projects}</SectionHeading><span className="project-progress" aria-hidden="true" /></div>
+      <div className="project-track" ref={trackRef}>{content.projects.map((project, index) => { const preset = titlePresets[index % titlePresets.length]; return <article className="project-card" data-title-size={projectTitleSize(project.name)} key={project.id}>
+        <div className={`project-cover cover-${(index % 3) + 1}`} aria-hidden="true"><MotionTitle as="strong" text={project.name} preset={preset} intensity="subtle" reduced={reduced} decorative /><i /></div>
+        <div className="project-body"><div><p className="eyebrow">{project.type}</p><MotionTitle as="h3" text={project.name} preset={preset} intensity="subtle" reduced={reduced} /></div><p>{project.summary}</p>{project.impact && <p className="project-impact">{project.impact}</p>}
           <ul className="tech-list">{project.technologies.map((tech) => <li key={tech}>{tech}</li>)}</ul>
           <footer><span>{labels[locale].status}: {project.status}</span><div>{project.links.map((link) => <a href={link.href} target="_blank" rel="noreferrer" key={link.href}>{link.label}<ArrowUpRight size={15} aria-hidden="true" /></a>)}</div></footer>
         </div>
-      </article>)}</div>
+      </article>; })}</div>
     </div>
   </section>;
 }
@@ -130,10 +131,7 @@ export function Portfolio({ initialLocale }: { initialLocale: Locale }) {
   const nameParts = useMemo(() => content.name.split(" "), [content.name]);
 
   useEffect(() => { document.documentElement.dataset.motion = reduced ? "reduced" : "full"; }, [reduced]);
-  useEffect(() => {
-    window.localStorage.setItem("portfolio-language", locale); updateSeo(locale, content);
-    if (!reduced) animate(".hero-word", { translateY: ["110%", "0%"], rotate: [2, 0], filter: ["blur(8px)", "blur(0px)"], delay: stagger(90), duration: 950, ease: "out(4)" });
-  }, [locale, content, reduced]);
+  useEffect(() => { window.localStorage.setItem("portfolio-language", locale); updateSeo(locale, content); }, [locale, content]);
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => entries.forEach((entry) => {
       if (!entry.isIntersecting) return;
@@ -176,22 +174,22 @@ export function Portfolio({ initialLocale }: { initialLocale: Locale }) {
     <main id="main">
       <section id="hero" className="hero" aria-labelledby="hero-title">
         <div className="hero-meta"><span>CR / 09.93° N</span><span>{content.role}</span></div>
-        <h1 id="hero-title" aria-label={content.name}>{nameParts.map((part) => <span className="hero-line" aria-hidden="true" key={part}><span className="hero-word">{part}</span></span>)}</h1>
+        <MotionTitle as="h1" id="hero-title" text={content.name} lines={nameParts} preset="blur" intensity="hero" reduced={reduced} trigger="load" />
         <div className="hero-bottom"><p>{content.intro}</p><div className="hero-actions"><a className="button primary" href="#projects" onPointerEnter={() => emitFluidImpulse(active, 8)}>{copy.viewProjects}<ArrowDown size={17} aria-hidden="true" /></a><a className="button secondary" href="#contact" onPointerEnter={() => emitFluidImpulse(active, 9)}>{copy.contact}<ArrowUpRight size={17} aria-hidden="true" /></a></div></div>
         <a className="scroll-cue" href="#about"><span>{copy.scroll}</span><ArrowDown size={16} aria-hidden="true" /></a>
       </section>
 
-      <section id="about" className="section about" aria-labelledby="about-title"><SectionHeading id="about-title">{copy.about}</SectionHeading><div className="about-grid"><div><p className="about-lead">{content.about[0]}</p><p>{content.about[1]}</p></div><aside><div className="portrait-system" aria-hidden="true"><span>K</span><i /><b>V</b></div><dl><div><dt>{copy.location}</dt><dd>{content.location}</dd></div><div><dt>{copy.availability}</dt><dd>{content.availability}</dd></div></dl></aside></div></section>
+      <section id="about" className="section about" aria-labelledby="about-title"><SectionHeading id="about-title" preset="rise" reduced={reduced}>{copy.about}</SectionHeading><div className="about-grid"><div><p className="about-lead">{content.about[0]}</p><p>{content.about[1]}</p></div><aside><div className="portrait-system" aria-hidden="true"><span>K</span><i /><b>V</b></div><dl><div><dt>{copy.location}</dt><dd>{content.location}</dd></div><div><dt>{copy.availability}</dt><dd>{content.availability}</dd></div></dl></aside></div></section>
 
-      <section id="skills" className="section skills" aria-labelledby="skills-title"><SectionHeading id="skills-title">{copy.skills}</SectionHeading><div className="skill-grid">{content.skills.map((skill) => <article key={skill.id}><h3>{skill.title}</h3><p>{skill.description}</p><ul>{skill.technologies.map((tech) => <li key={tech}>{tech}</li>)}</ul></article>)}</div></section>
+      <section id="skills" className="section skills" aria-labelledby="skills-title"><SectionHeading id="skills-title" preset="scale" reduced={reduced}>{copy.skills}</SectionHeading><div className="skill-grid">{content.skills.map((skill, index) => <article key={skill.id}><MotionTitle as="h3" text={skill.title} preset={titlePresets[index % titlePresets.length]} intensity="subtle" reduced={reduced} /><p>{skill.description}</p><ul>{skill.technologies.map((tech) => <li key={tech}>{tech}</li>)}</ul></article>)}</div></section>
 
       <ProjectStory content={content} locale={locale} reduced={reduced} />
 
-      <section id="experience" className="section experience" aria-labelledby="experience-title"><SectionHeading id="experience-title">{copy.experience}</SectionHeading><Timeline items={content.experience} locale={locale} /></section>
-      <section id="education" className="section education" aria-labelledby="education-title"><SectionHeading id="education-title">{copy.education}</SectionHeading><Timeline items={content.education} locale={locale} /></section>
-      <section id="certifications" className="section certifications" aria-labelledby="certifications-title"><SectionHeading id="certifications-title">{copy.certifications}</SectionHeading><ol>{content.certifications.map((certification) => <li key={certification}><p>{certification}</p></li>)}</ol></section>
+      <section id="experience" className="section experience" aria-labelledby="experience-title"><SectionHeading id="experience-title" preset="fall" reduced={reduced}>{copy.experience}</SectionHeading><Timeline items={content.experience} locale={locale} preset="fall" reduced={reduced} /></section>
+      <section id="education" className="section education" aria-labelledby="education-title"><SectionHeading id="education-title" preset="rise" reduced={reduced}>{copy.education}</SectionHeading><Timeline items={content.education} locale={locale} preset="rise" reduced={reduced} /></section>
+      <section id="certifications" className="section certifications" aria-labelledby="certifications-title"><SectionHeading id="certifications-title" preset="scale" reduced={reduced}>{copy.certifications}</SectionHeading><ol>{content.certifications.map((certification) => <li key={certification}><p>{certification}</p></li>)}</ol></section>
 
-      <section id="contact" className="contact-section" aria-labelledby="contact-title"><p className="eyebrow">{copy.contact}</p><h2 id="contact-title">{copy.contactLead}</h2><p>{copy.contactCopy}</p><div className="contact-links">{content.contact.map((link) => { const Icon = link.label === "Email" ? Mail : link.label === "GitHub" ? Github : link.label === "WhatsApp" ? MessageCircle : Linkedin; return <a href={link.href} target={link.href.startsWith("http") ? "_blank" : undefined} rel="noreferrer" key={link.href}><Icon size={20} aria-hidden="true" />{link.label}<ArrowUpRight size={17} aria-hidden="true" /></a>; })}</div><footer><span>© {new Date().getFullYear()} {content.name}</span><a href="#hero">TOP ↑</a></footer></section>
+      <section id="contact" className="contact-section" aria-labelledby="contact-title"><p className="eyebrow">{copy.contact}</p><MotionTitle as="h2" id="contact-title" text={copy.contactLead} preset="blur" intensity="section" reduced={reduced} /><p>{copy.contactCopy}</p><div className="contact-links">{content.contact.map((link) => { const Icon = link.label === "Email" ? Mail : link.label === "GitHub" ? Github : link.label === "WhatsApp" ? MessageCircle : Linkedin; return <a href={link.href} target={link.href.startsWith("http") ? "_blank" : undefined} rel="noreferrer" key={link.href}><Icon size={20} aria-hidden="true" />{link.label}<ArrowUpRight size={17} aria-hidden="true" /></a>; })}</div><footer><span>© {new Date().getFullYear()} {content.name}</span><a href="#hero">TOP ↑</a></footer></section>
     </main>
     <div className="sr-only" aria-live="polite">{copy.localeChanged}</div>
   </>;
