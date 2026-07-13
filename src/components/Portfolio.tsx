@@ -2,7 +2,7 @@
 
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { animate, stagger } from "animejs";
-import { ArrowDown, ArrowUpRight, Github, Linkedin, Mail, Menu, Minus, X } from "lucide-react";
+import { ArrowDown, ArrowUpRight, Github, Linkedin, Mail, Menu, MessageCircle, Minus, X } from "lucide-react";
 import { portfolioEs } from "../generated/portfolio-content.es";
 import { portfolioEn } from "../content/translations/portfolio.en";
 import type { Locale, PortfolioContent, TimelineItem } from "../content/types";
@@ -27,12 +27,18 @@ function updateSeo(locale: Locale, content: PortfolioContent) {
   canonical.href = `${window.location.origin}/${locale}`;
 }
 
+function emitFluidImpulse(index = 1) {
+  window.dispatchEvent(new CustomEvent("portfolio-fluid-impulse", { detail: { index } }));
+}
+
 function useReducedMotion() {
   const [reduced, setReduced] = useState(false);
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const stored = window.localStorage.getItem("portfolio-reduced-motion");
-    const sync = () => setReduced(stored === "true" || (stored === null && media.matches));
+    const sync = () => {
+      const stored = window.localStorage.getItem("portfolio-reduced-motion");
+      setReduced(stored === "true" || (stored === null && media.matches));
+    };
     sync(); media.addEventListener("change", sync);
     return () => media.removeEventListener("change", sync);
   }, []);
@@ -42,15 +48,32 @@ function useReducedMotion() {
   return [reduced, toggle] as const;
 }
 
-function SectionHeading({ index, children }: { index: string; children: string }) {
-  return <header className="section-heading"><span>{index}</span><h2>{children}</h2><div aria-hidden="true" /></header>;
+function SectionHeading({ id, children }: { id: string; children: string }) {
+  return <header className="section-heading"><h2 id={id}>{children}</h2><div aria-hidden="true" /></header>;
 }
 
-function Timeline({ items }: { items: TimelineItem[] }) {
-  return <div className="timeline"><svg className="timeline-line" viewBox="0 0 40 1000" preserveAspectRatio="none" aria-hidden="true"><path d="M20 0 V1000" /></svg><div className="timeline-items">{items.map((item, index) => <article className="timeline-item" key={item.id}><span className="timeline-dot" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span><div><p className="eyebrow">{item.period}</p><h3>{item.title}</h3><p className="organization">{item.organization}</p><p>{item.summary}</p>{item.highlights.length > 0 && <ul>{item.highlights.map((highlight) => <li key={highlight}>{highlight}</li>)}</ul>}</div></article>)}</div></div>;
+function DetailList({ title, items }: { title: string; items?: string[] }) {
+  if (!items?.length) return null;
+  return <section className="timeline-detail"><h4>{title}</h4><ul>{items.map((item) => <li key={item}>{item}</li>)}</ul></section>;
 }
 
-function ProjectStory({ content, locale }: { content: PortfolioContent; locale: Locale }) {
+function Timeline({ items, locale }: { items: TimelineItem[]; locale: Locale }) {
+  const copy = labels[locale];
+  return <div className="timeline">
+    <svg className="timeline-line" viewBox="0 0 40 1000" preserveAspectRatio="none" aria-hidden="true"><path d="M20 0 V1000" /></svg>
+    <div className="timeline-items">{items.map((item) => <article className="timeline-item" key={item.id}>
+      <span className="timeline-dot" aria-hidden="true" />
+      <div className="timeline-content">
+        <p className="eyebrow">{item.period}</p><h3>{item.title}</h3><p className="organization">{item.organization}</p><p className="timeline-summary">{item.summary}</p>
+        {item.highlights.length > 0 && <ul className="timeline-highlights">{item.highlights.map((highlight) => <li key={highlight}>{highlight}</li>)}</ul>}
+        {(item.responsibilities?.length || item.results?.length) && <div className="timeline-detail-grid"><DetailList title={copy.responsibilities} items={item.responsibilities} /><DetailList title={copy.results} items={item.results} /></div>}
+        {item.technologies?.length && <div className="timeline-tools"><h4>{copy.tools}</h4><ul className="tech-list">{item.technologies.map((tech) => <li key={tech}>{tech}</li>)}</ul></div>}
+      </div>
+    </article>)}</div>
+  </div>;
+}
+
+function ProjectStory({ content, locale, reduced }: { content: PortfolioContent; locale: Locale; reduced: boolean }) {
   const storyRef = useRef<HTMLElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -59,19 +82,35 @@ function ProjectStory({ content, locale }: { content: PortfolioContent; locale: 
     let frame = 0;
     const update = () => {
       frame = 0;
-      if (window.innerWidth < 900 || document.documentElement.dataset.motion === "reduced") { track.style.transform = "none"; return; }
+      if (window.innerWidth < 900 || reduced) {
+        track.style.transform = "none"; story.style.height = "auto"; story.style.removeProperty("--project-progress"); return;
+      }
+      const maxX = Math.max(track.scrollWidth - window.innerWidth, 0);
+      story.style.height = `${window.innerHeight + maxX}px`;
       const rect = story.getBoundingClientRect();
-      const distance = story.offsetHeight - window.innerHeight;
-      const progress = Math.min(Math.max(-rect.top / Math.max(distance, 1), 0), 1);
-      const maxX = Math.max(track.scrollWidth - window.innerWidth + 96, 0);
+      const distance = Math.max(story.offsetHeight - window.innerHeight, 1);
+      const progress = Math.min(Math.max(-rect.top / distance, 0), 1);
       track.style.transform = `translate3d(${-progress * maxX}px,0,0)`;
       story.style.setProperty("--project-progress", `${progress * 100}%`);
     };
-    const onScroll = () => { if (!frame) frame = requestAnimationFrame(update); };
-    update(); window.addEventListener("scroll", onScroll, { passive: true }); window.addEventListener("resize", onScroll, { passive: true });
-    return () => { cancelAnimationFrame(frame); window.removeEventListener("scroll", onScroll); window.removeEventListener("resize", onScroll); };
-  }, []);
-  return <section id="projects" className="projects-story" ref={storyRef} style={{ "--project-count": content.projects.length } as React.CSSProperties} aria-labelledby="projects-title"><div className="projects-sticky"><div className="projects-header"><SectionHeading index="04">{labels[locale].projects}</SectionHeading><span className="project-progress" aria-hidden="true" /></div><div className="project-track" ref={trackRef}>{content.projects.map((project, index) => <article className="project-card" key={project.id}><div className={`project-cover cover-${(index % 3) + 1}`} aria-hidden="true"><span>{String(index + 1).padStart(2, "0")}</span><strong>{project.name}</strong><i /></div><div className="project-body"><div><p className="eyebrow">{project.type}</p><h3>{project.name}</h3></div><p>{project.summary}</p>{project.impact && <p className="project-impact">{project.impact}</p>}<ul className="tech-list">{project.technologies.map((tech) => <li key={tech}>{tech}</li>)}</ul><footer><span>{labels[locale].status}: {project.status}</span><div>{project.links.map((link) => <a href={link.href} target="_blank" rel="noreferrer" key={link.href}>{link.label}<ArrowUpRight size={15} aria-hidden="true" /></a>)}</div></footer></div></article>)}</div></div></section>;
+    const requestUpdate = () => { if (!frame) frame = requestAnimationFrame(update); };
+    const observer = new ResizeObserver(requestUpdate);
+    observer.observe(track); observer.observe(document.documentElement);
+    update(); window.addEventListener("scroll", requestUpdate, { passive: true }); window.addEventListener("resize", requestUpdate, { passive: true });
+    return () => { cancelAnimationFrame(frame); observer.disconnect(); window.removeEventListener("scroll", requestUpdate); window.removeEventListener("resize", requestUpdate); };
+  }, [content.projects.length, reduced]);
+
+  return <section id="projects" className="projects-story" ref={storyRef} aria-labelledby="projects-title">
+    <div className="projects-sticky"><div className="projects-header"><SectionHeading id="projects-title">{labels[locale].projects}</SectionHeading><span className="project-progress" aria-hidden="true" /></div>
+      <div className="project-track" ref={trackRef}>{content.projects.map((project, index) => <article className="project-card" key={project.id}>
+        <div className={`project-cover cover-${(index % 3) + 1}`} aria-hidden="true"><strong>{project.name}</strong><i /></div>
+        <div className="project-body"><div><p className="eyebrow">{project.type}</p><h3>{project.name}</h3></div><p>{project.summary}</p>{project.impact && <p className="project-impact">{project.impact}</p>}
+          <ul className="tech-list">{project.technologies.map((tech) => <li key={tech}>{tech}</li>)}</ul>
+          <footer><span>{labels[locale].status}: {project.status}</span><div>{project.links.map((link) => <a href={link.href} target="_blank" rel="noreferrer" key={link.href}>{link.label}<ArrowUpRight size={15} aria-hidden="true" /></a>)}</div></footer>
+        </div>
+      </article>)}</div>
+    </div>
+  </section>;
 }
 
 export function Portfolio({ initialLocale }: { initialLocale: Locale }) {
@@ -85,16 +124,17 @@ export function Portfolio({ initialLocale }: { initialLocale: Locale }) {
   const copy = labels[locale];
   const nameParts = useMemo(() => content.name.split(" "), [content.name]);
 
+  useEffect(() => { document.documentElement.dataset.motion = reduced ? "reduced" : "full"; }, [reduced]);
   useEffect(() => {
-    document.documentElement.dataset.motion = reduced ? "reduced" : "full";
-  }, [reduced]);
-  useEffect(() => {
-    window.localStorage.setItem("portfolio-language", locale);
-    updateSeo(locale, content);
+    window.localStorage.setItem("portfolio-language", locale); updateSeo(locale, content);
     if (!reduced) animate(".hero-word", { translateY: ["110%", "0%"], rotate: [2, 0], filter: ["blur(8px)", "blur(0px)"], delay: stagger(90), duration: 950, ease: "out(4)" });
   }, [locale, content, reduced]);
   useEffect(() => {
-    const observer = new IntersectionObserver((entries) => entries.forEach((entry) => { if (entry.isIntersecting) setActive(entry.target.id); }), { rootMargin: "-35% 0px -55%" });
+    const observer = new IntersectionObserver((entries) => entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      setActive(entry.target.id);
+      emitFluidImpulse(Math.max(sections.indexOf(entry.target.id as typeof sections[number]), 0) + 1);
+    }), { rootMargin: "-35% 0px -55%" });
     document.querySelectorAll("main section[id]").forEach((section) => observer.observe(section));
     return () => observer.disconnect();
   }, []);
@@ -106,9 +146,7 @@ export function Portfolio({ initialLocale }: { initialLocale: Locale }) {
 
   const changeLocale = (next: Locale) => {
     if (next === locale) return;
-    const hash = window.location.hash;
-    window.history.pushState({}, "", `/${next}${hash}`);
-    setLocale(next); setMenuOpen(false);
+    window.history.pushState({}, "", `/${next}${window.location.hash}`); setLocale(next); setMenuOpen(false);
   };
   const navigate = () => setMenuOpen(false);
 
@@ -120,7 +158,7 @@ export function Portfolio({ initialLocale }: { initialLocale: Locale }) {
     <header className="site-nav">
       <a className="brand" href="#hero" aria-label={`${content.shortName} — ${copy.scroll}`}>KV<span>.</span></a>
       <nav className={menuOpen ? "nav-links open" : "nav-links"} id="primary-menu" aria-label={copy.nav}>
-        {navigationSections.map((section, index) => <a href={`#${section}`} data-active={active === section} onClick={navigate} key={section}><span>{String(index + 2).padStart(2, "0")}</span>{copy[section]}</a>)}
+        {navigationSections.map((section) => <a href={`#${section}`} data-active={active === section} onClick={navigate} key={section}>{copy[section]}</a>)}
         <a className="nav-contact" href="#contact" onClick={navigate}>{copy.contact}</a>
       </nav>
       <div className="nav-actions">
@@ -134,21 +172,21 @@ export function Portfolio({ initialLocale }: { initialLocale: Locale }) {
       <section id="hero" className="hero" aria-labelledby="hero-title">
         <div className="hero-meta"><span>CR / 09.93° N</span><span>{content.role}</span></div>
         <h1 id="hero-title" aria-label={content.name}>{nameParts.map((part) => <span className="hero-line" aria-hidden="true" key={part}><span className="hero-word">{part}</span></span>)}</h1>
-        <div className="hero-bottom"><p>{content.intro}</p><div className="hero-actions"><a className="button primary" href="#projects">{copy.viewProjects}<ArrowDown size={17} aria-hidden="true" /></a><a className="button secondary" href="#contact">{copy.contact}<ArrowUpRight size={17} aria-hidden="true" /></a></div></div>
+        <div className="hero-bottom"><p>{content.intro}</p><div className="hero-actions"><a className="button primary" href="#projects" onPointerEnter={() => emitFluidImpulse(8)}>{copy.viewProjects}<ArrowDown size={17} aria-hidden="true" /></a><a className="button secondary" href="#contact" onPointerEnter={() => emitFluidImpulse(9)}>{copy.contact}<ArrowUpRight size={17} aria-hidden="true" /></a></div></div>
         <a className="scroll-cue" href="#about"><span>{copy.scroll}</span><ArrowDown size={16} aria-hidden="true" /></a>
       </section>
 
-      <section id="about" className="section about" aria-labelledby="about-title"><SectionHeading index="02">{copy.about}</SectionHeading><div className="about-grid"><div><p className="about-lead">{content.about[0]}</p><p>{content.about[1]}</p></div><aside><div className="portrait-system" aria-hidden="true"><span>K</span><i /><b>V</b></div><dl><div><dt>{copy.location}</dt><dd>{content.location}</dd></div><div><dt>{copy.availability}</dt><dd>{content.availability}</dd></div></dl></aside></div></section>
+      <section id="about" className="section about" aria-labelledby="about-title"><SectionHeading id="about-title">{copy.about}</SectionHeading><div className="about-grid"><div><p className="about-lead">{content.about[0]}</p><p>{content.about[1]}</p></div><aside><div className="portrait-system" aria-hidden="true"><span>K</span><i /><b>V</b></div><dl><div><dt>{copy.location}</dt><dd>{content.location}</dd></div><div><dt>{copy.availability}</dt><dd>{content.availability}</dd></div></dl></aside></div></section>
 
-      <section id="skills" className="section skills" aria-labelledby="skills-title"><SectionHeading index="03">{copy.skills}</SectionHeading><div className="skill-grid">{content.skills.map((skill, index) => <article key={skill.id}><span>{String(index + 1).padStart(2, "0")}</span><h3>{skill.title}</h3><p>{skill.description}</p><ul>{skill.technologies.map((tech) => <li key={tech}>{tech}</li>)}</ul></article>)}</div></section>
+      <section id="skills" className="section skills" aria-labelledby="skills-title"><SectionHeading id="skills-title">{copy.skills}</SectionHeading><div className="skill-grid">{content.skills.map((skill) => <article key={skill.id}><h3>{skill.title}</h3><p>{skill.description}</p><ul>{skill.technologies.map((tech) => <li key={tech}>{tech}</li>)}</ul></article>)}</div></section>
 
-      <ProjectStory content={content} locale={locale} />
+      <ProjectStory content={content} locale={locale} reduced={reduced} />
 
-      <section id="experience" className="section experience" aria-labelledby="experience-title"><SectionHeading index="05">{copy.experience}</SectionHeading><Timeline items={content.experience} /></section>
-      <section id="education" className="section education" aria-labelledby="education-title"><SectionHeading index="06">{copy.education}</SectionHeading><Timeline items={content.education} /></section>
-      <section id="certifications" className="section certifications" aria-labelledby="certifications-title"><SectionHeading index="07">{copy.certifications}</SectionHeading><ol>{content.certifications.map((certification, index) => <li key={certification}><span>{String(index + 1).padStart(2, "0")}</span><p>{certification}</p></li>)}</ol></section>
+      <section id="experience" className="section experience" aria-labelledby="experience-title"><SectionHeading id="experience-title">{copy.experience}</SectionHeading><Timeline items={content.experience} locale={locale} /></section>
+      <section id="education" className="section education" aria-labelledby="education-title"><SectionHeading id="education-title">{copy.education}</SectionHeading><Timeline items={content.education} locale={locale} /></section>
+      <section id="certifications" className="section certifications" aria-labelledby="certifications-title"><SectionHeading id="certifications-title">{copy.certifications}</SectionHeading><ol>{content.certifications.map((certification) => <li key={certification}><p>{certification}</p></li>)}</ol></section>
 
-      <section id="contact" className="contact-section" aria-labelledby="contact-title"><p className="eyebrow">08 / {copy.contact}</p><h2 id="contact-title">{copy.contactLead}</h2><p>{copy.contactCopy}</p><div className="contact-links">{content.contact.map((link) => { const Icon = link.label === "Email" ? Mail : link.label === "GitHub" ? Github : Linkedin; return <a href={link.href} target={link.href.startsWith("http") ? "_blank" : undefined} rel="noreferrer" key={link.href}><Icon size={20} aria-hidden="true" />{link.label}<ArrowUpRight size={17} aria-hidden="true" /></a>; })}</div><footer><span>© {new Date().getFullYear()} {content.name}</span><a href="#hero">TOP ↑</a></footer></section>
+      <section id="contact" className="contact-section" aria-labelledby="contact-title"><p className="eyebrow">{copy.contact}</p><h2 id="contact-title">{copy.contactLead}</h2><p>{copy.contactCopy}</p><div className="contact-links">{content.contact.map((link) => { const Icon = link.label === "Email" ? Mail : link.label === "GitHub" ? Github : link.label === "WhatsApp" ? MessageCircle : Linkedin; return <a href={link.href} target={link.href.startsWith("http") ? "_blank" : undefined} rel="noreferrer" key={link.href}><Icon size={20} aria-hidden="true" />{link.label}<ArrowUpRight size={17} aria-hidden="true" /></a>; })}</div><footer><span>© {new Date().getFullYear()} {content.name}</span><a href="#hero">TOP ↑</a></footer></section>
     </main>
     <div className="sr-only" aria-live="polite">{copy.localeChanged}</div>
   </>;

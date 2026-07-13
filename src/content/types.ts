@@ -30,6 +30,9 @@ export interface TimelineItem {
   period: string;
   summary: string;
   highlights: string[];
+  responsibilities?: string[];
+  results?: string[];
+  technologies?: string[];
 }
 
 export interface PortfolioContent {

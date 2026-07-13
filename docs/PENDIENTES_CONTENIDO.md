@@ -6,4 +6,4 @@
 - Add a graduation month only if Kendall wants more precise academic dates displayed.
 - Add project screenshots only when authentic, optimized assets are available.
 
-The public phone number from the source is intentionally not exposed in this portfolio.
+The public WhatsApp number from the source is included through the authorized `wa.me` contact link.

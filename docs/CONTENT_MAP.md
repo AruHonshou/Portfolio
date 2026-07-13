@@ -10,4 +10,4 @@
 | Certifications | Section 5 |
 | Contact | Section 3 |
 
-The public phone number is intentionally omitted from the site to minimize exposed personal data. The existing email, GitHub, LinkedIn, and public portfolio links are sufficient professional contact channels.
+The public WhatsApp number authorized in the source is exposed through a `wa.me` link, together with email, GitHub, and LinkedIn.

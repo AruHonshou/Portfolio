@@ -31,6 +31,46 @@ test("mobile menu supports Escape and has no horizontal overflow", async ({ page
   await expect(page.locator(".project-track")).toHaveCSS("display", "grid");
 });
 
+test("decorative ordinal labels are removed and WhatsApp is available", async ({ page }) => {
+  await page.goto("/es");
+  await expect(page.locator(".section-heading > span, .skill-grid article > span, .project-cover > span, .certifications li > span")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /WhatsApp/ })).toHaveAttribute("href", "https://wa.me/50685097920");
+  await expect(page.getByRole("heading", { name: "Responsabilidades" }).first()).toBeVisible();
+});
+
+test("desktop project story reaches the complete final card", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "desktop-only horizontal story");
+  await page.goto("/es");
+  const story = page.locator("#projects");
+  await expect.poll(() => story.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThan(1000);
+  await story.evaluate((element) => {
+    document.documentElement.style.scrollBehavior = "auto";
+    const rect = element.getBoundingClientRect();
+    window.scrollTo(0, window.scrollY + rect.top + rect.height - window.innerHeight);
+  });
+  await page.waitForTimeout(150);
+  const bounds = await page.locator(".project-card").last().evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return { left: rect.left, right: rect.right, viewport: window.innerWidth };
+  });
+  expect(bounds.left).toBeGreaterThanOrEqual(18);
+  expect(bounds.right).toBeLessThanOrEqual(bounds.viewport - 18);
+});
+
+test("fluid canvas changes after pointer movement", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "desktop WebGL behavior");
+  await page.goto("/es");
+  const canvas = page.getByTestId("fluid-canvas");
+  await expect(canvas).toBeVisible();
+  await page.waitForTimeout(300);
+  const before = await canvas.screenshot();
+  await page.mouse.move(180, 180);
+  await page.mouse.move(760, 430, { steps: 8 });
+  await page.waitForTimeout(250);
+  const after = await canvas.screenshot();
+  expect(Buffer.compare(before, after)).not.toBe(0);
+});
+
 test("reduced motion and WebGL fallback preserve content", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/en");

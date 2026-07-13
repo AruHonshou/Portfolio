@@ -22,5 +22,17 @@ describe("markdown content", () => {
     expect(portfolioEn.projects.map(({ id }) => id)).toEqual(portfolioEs.projects.map(({ id }) => id));
     expect(portfolioEn.skills.map(({ id }) => id)).toEqual(portfolioEs.skills.map(({ id }) => id));
   });
+  it("publishes the expanded Aru project without duplicating it", () => {
+    const aruProjects = portfolioEs.projects.filter(({ id }) => id === "aru");
+    expect(aruProjects).toHaveLength(1);
+    expect(aruProjects[0].summary).toContain("PNGTuber");
+    expect(aruProjects[0].links.map(({ href }) => href)).toContain("https://aruhonshou.github.io/Aru/guia.html");
+  });
+  it("keeps detailed experience and public contact channels aligned", () => {
+    expect(portfolioEs.experience.every((entry) => entry.responsibilities?.length && entry.results?.length && entry.technologies?.length)).toBe(true);
+    expect(portfolioEn.experience.map(({ id }) => id)).toEqual(portfolioEs.experience.map(({ id }) => id));
+    expect(portfolioEs.contact.find(({ label }) => label === "WhatsApp")?.href).toBe("https://wa.me/50685097920");
+    expect(portfolioEn.contact.find(({ label }) => label === "WhatsApp")?.href).toBe("https://wa.me/50685097920");
+  });
   it("falls back to factual Spanish structures", () => expect(portfolioEs.locale).toBe("es"));
 });
