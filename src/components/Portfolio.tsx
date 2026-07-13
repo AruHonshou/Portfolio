@@ -58,6 +58,52 @@ function SectionHeading({ id, children, preset, reduced }: { id: string; childre
   return <header className="section-heading" data-motion-state={reduced ? "static" : "pending"}><MotionTitle as="h2" id={id} text={children} preset={preset} intensity="section" reduced={reduced} syncRule /><div aria-hidden="true" /></header>;
 }
 
+function IdentityPanel({ reduced }: { reduced: boolean }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  const moveFocus = (clientX: number, clientY: number) => {
+    const panel = panelRef.current;
+    if (!panel || reduced) return;
+    const bounds = panel.getBoundingClientRect();
+    const x = Math.min(Math.max((clientX - bounds.left) / bounds.width, 0), 1);
+    const y = Math.min(Math.max((clientY - bounds.top) / bounds.height, 0), 1);
+    panel.style.setProperty("--identity-x", `${x * 100}%`);
+    panel.style.setProperty("--identity-y", `${y * 100}%`);
+    panel.style.setProperty("--identity-shift-x", `${(x - 0.5) * 18}px`);
+    panel.style.setProperty("--identity-shift-y", `${(y - 0.5) * 18}px`);
+    panel.style.setProperty("--identity-counter-x", `${(0.5 - x) * 12}px`);
+    panel.style.setProperty("--identity-counter-y", `${(0.5 - y) * 12}px`);
+  };
+
+  const resetFocus = () => {
+    const panel = panelRef.current;
+    if (!panel) return;
+    panel.style.setProperty("--identity-x", "50%");
+    panel.style.setProperty("--identity-y", "50%");
+    panel.style.setProperty("--identity-shift-x", "0px");
+    panel.style.setProperty("--identity-shift-y", "0px");
+    panel.style.setProperty("--identity-counter-x", "0px");
+    panel.style.setProperty("--identity-counter-y", "0px");
+  };
+
+  return <div
+    ref={panelRef}
+    className="portrait-system"
+    data-testid="identity-panel"
+    onPointerMove={(event) => moveFocus(event.clientX, event.clientY)}
+    onPointerLeave={resetFocus}
+    aria-hidden="true"
+  >
+    <span className="identity-k">K</span>
+    <b className="identity-v">V</b>
+    <i className="identity-orbit" />
+    <u className="identity-frame" />
+    <small className="identity-code">KV / CR</small>
+    <small className="identity-coordinate">09.93 N</small>
+    <em className="identity-role">SOFTWARE / SYSTEMS / AI</em>
+  </div>;
+}
+
 function DetailList({ title, items }: { title: string; items?: string[] }) {
   if (!items?.length) return null;
   return <section className="timeline-detail"><h4>{title}</h4><ul>{items.map((item) => <li key={item}>{item}</li>)}</ul></section>;
@@ -180,7 +226,7 @@ export function Portfolio({ initialLocale }: { initialLocale: Locale }) {
         <a className="scroll-cue" href="#about"><span>{copy.scroll}</span><ArrowDown size={16} aria-hidden="true" /></a>
       </section>
 
-      <section id="about" className="section about" aria-labelledby="about-title"><SectionHeading id="about-title" preset="rise" reduced={reduced}>{copy.about}</SectionHeading><div className="about-grid"><div><p className="about-lead">{content.about[0]}</p><p>{content.about[1]}</p></div><aside><div className="portrait-system" aria-hidden="true"><span>K</span><i /><b>V</b></div><dl><div><dt>{copy.location}</dt><dd>{content.location}</dd></div><div><dt>{copy.availability}</dt><dd>{content.availability}</dd></div></dl></aside></div></section>
+      <section id="about" className="section about" aria-labelledby="about-title"><SectionHeading id="about-title" preset="rise" reduced={reduced}>{copy.about}</SectionHeading><div className="about-grid"><div><p className="about-lead">{content.about[0]}</p><p>{content.about[1]}</p></div><aside><IdentityPanel reduced={reduced} /><dl><div><dt>{copy.location}</dt><dd>{content.location}</dd></div><div><dt>{copy.availability}</dt><dd>{content.availability}</dd></div></dl></aside></div></section>
 
       <section id="skills" className="section skills" aria-labelledby="skills-title"><SectionHeading id="skills-title" preset="scale" reduced={reduced}>{copy.skills}</SectionHeading><div className="skill-grid">{content.skills.map((skill, index) => <article key={skill.id}><MotionTitle as="h3" text={skill.title} preset={titlePresets[index % titlePresets.length]} intensity="subtle" reduced={reduced} /><p>{skill.description}</p><ul>{skill.technologies.map((tech) => <li key={tech}>{tech}</li>)}</ul></article>)}</div></section>
 

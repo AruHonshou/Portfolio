@@ -18,6 +18,33 @@ test("language switch preserves the active section", async ({ page }) => {
   await expect(page).toHaveURL(/\/en#projects$/);
 });
 
+test("animated section titles update visually when the language changes", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "desktop title animation regression");
+  await page.goto("/es");
+  for (const id of ["about", "skills", "projects", "experience", "education", "certifications", "contact"]) {
+    await page.locator(`#${id}`).evaluate((element) => element.scrollIntoView({ block: "center" }));
+    await page.waitForTimeout(80);
+  }
+  await page.getByRole("button", { name: "EN", exact: true }).click();
+
+  const translations = {
+    "about-title": ["About", "Sobre mí"],
+    "skills-title": ["Capabilities", "Capacidades"],
+    "projects-title": ["Projects", "Proyectos"],
+    "experience-title": ["Experience", "Experiencia"],
+    "education-title": ["Education", "Formación"],
+    "certifications-title": ["Certifications", "Certificaciones"],
+    "contact-title": ["Let's take your next product to production.", "Llevemos tu próximo producto a producción."],
+  } as const;
+
+  for (const [id, [english, spanish]] of Object.entries(translations)) {
+    const title = page.locator(`#${id}`);
+    await expect(title).toHaveAttribute("aria-label", english);
+    await expect(title).toContainText(english);
+    await expect(title).not.toContainText(spanish);
+  }
+});
+
 test("mobile menu supports Escape and has no horizontal overflow", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile", "mobile-only behavior");
   await page.goto("/es");
@@ -127,10 +154,33 @@ test("motion titles use the planned hierarchy and settle accessibly", async ({ p
     document.documentElement.style.scrollBehavior = "auto";
     element.scrollIntoView({ block: "start" });
   });
-  const contactLines = await page.locator("#contact-title").evaluate((title) => Array.from(title.querySelectorAll<HTMLElement>(".motion-word")).map((word) => ({ text: word.textContent?.toLowerCase(), top: Math.round(word.getBoundingClientRect().top) })));
-  const algo = contactLines.find((word) => word.text === "algo");
-  const useful = contactLines.find((word) => word.text === "util.");
-  expect(algo?.top).toBe(useful?.top);
+  const contactTitleFits = await page.locator("#contact-title").evaluate((title) => {
+    const bounds = title.getBoundingClientRect();
+    return Array.from(title.querySelectorAll<HTMLElement>(".motion-word")).every((word) => {
+      const wordBounds = word.getBoundingClientRect();
+      return wordBounds.left >= bounds.left - 1 && wordBounds.right <= bounds.right + 1;
+    });
+  });
+  expect(contactTitleFits).toBe(true);
+});
+
+test("about identity panel responds to the pointer without affecting layout", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "desktop pointer interaction");
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.goto("/es");
+  await expect(page.getByRole("button", { name: "EN", exact: true })).toBeEnabled();
+  const panel = page.getByTestId("identity-panel");
+  await panel.scrollIntoViewIfNeeded();
+  const bounds = await panel.boundingBox();
+  expect(bounds).not.toBeNull();
+  await panel.dispatchEvent("pointermove", {
+    clientX: bounds!.x + bounds!.width * 0.78,
+    clientY: bounds!.y + bounds!.height * 0.28,
+  });
+  const focus = await panel.evaluate((element) => getComputedStyle(element).getPropertyValue("--identity-x"));
+  expect(Number.parseFloat(focus)).toBeCloseTo(78, 0);
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+  expect(overflow).toBe(false);
 });
 
 test("long project titles stay intact in both languages", async ({ page }, testInfo) => {
@@ -162,7 +212,7 @@ test("reduced motion and WebGL fallback preserve content", async ({ page }) => {
   await expect(page.locator("#hero-title")).toHaveAttribute("data-motion-state", "static");
   await expect(page.locator(".motion-char")).toHaveCount(0);
   await page.locator("canvas").evaluate((canvas) => canvas.dispatchEvent(new Event("webglcontextlost", { cancelable: true })));
-  await expect(page.getByRole("heading", { name: "Let's build something useful." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Let's take your next product to production." })).toBeVisible();
 });
 
 test("primary links are keyboard reachable and console stays clean", async ({ page }) => {

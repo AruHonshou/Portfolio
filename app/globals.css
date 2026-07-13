@@ -108,14 +108,89 @@ html[data-motion="full"] .section-heading[data-motion-state="playing"] > div { t
 .about-grid p { color: var(--gray-300); line-height: 1.75; font-size: 1.05rem; }
 .about-grid .about-lead { color: var(--white); font-size: clamp(1.7rem, 3.2vw, 3.5rem); line-height: 1.18; margin-top: 0; }
 .about-grid aside { display: flex; flex-direction: column; gap: 34px; }
-.portrait-system { aspect-ratio: 1; position: relative; border: 1px solid var(--rule); overflow: hidden; display: grid; place-items: center; }
-.portrait-system::before, .portrait-system::after { content: ""; position: absolute; background: var(--rule); }
-.portrait-system::before { width: 1px; height: 130%; transform: rotate(33deg); }
-.portrait-system::after { height: 1px; width: 130%; transform: rotate(-17deg); }
-.portrait-system span, .portrait-system b { position: absolute; font-family: var(--display); font-size: clamp(6rem, 12vw, 12rem); line-height: 1; }
-.portrait-system span { left: 7%; top: 3%; }
-.portrait-system b { right: 4%; bottom: -8%; color: transparent; -webkit-text-stroke: 1px var(--white); }
-.portrait-system i { width: 42%; aspect-ratio: 1; border: 1px solid var(--white); border-radius: 50%; }
+.portrait-system {
+  --identity-x: 50%;
+  --identity-y: 50%;
+  --identity-shift-x: 0px;
+  --identity-shift-y: 0px;
+  --identity-counter-x: 0px;
+  --identity-counter-y: 0px;
+  aspect-ratio: 1;
+  container-type: inline-size;
+  position: relative;
+  isolation: isolate;
+  border: 1px solid rgba(255,255,255,.48);
+  overflow: hidden;
+  cursor: crosshair;
+  background-color: rgba(0,0,0,.72);
+  background-image: linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px);
+  background-size: 32px 32px;
+  transition: border-color .3s ease, background-color .3s ease;
+}
+.portrait-system::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  width: 66%;
+  aspect-ratio: 1;
+  left: 17%;
+  top: 17%;
+  border: 1px solid rgba(255,255,255,.58);
+  transform: rotate(32deg);
+  animation: identity-rotate 22s linear infinite;
+}
+.portrait-system::after {
+  content: "";
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  height: 1px;
+  margin-top: -1px;
+  background: rgba(255,255,255,.7);
+  box-shadow: 0 0 16px rgba(255,255,255,.35);
+  opacity: .42;
+  animation: identity-scan 5.5s cubic-bezier(.65,0,.35,1) infinite;
+  pointer-events: none;
+}
+.portrait-system:hover { border-color: var(--white); background-color: rgba(0,0,0,.86); }
+.portrait-system .identity-k,
+.portrait-system .identity-v {
+  position: absolute;
+  z-index: 2;
+  font-family: var(--display);
+  font-size: clamp(7rem, 13vw, 12.5rem);
+  font-style: normal;
+  font-weight: 800;
+  line-height: .76;
+  transition: transform .12s linear;
+}
+.portrait-system .identity-k { left: 5%; top: 8%; transform: translate(var(--identity-shift-x), var(--identity-shift-y)); }
+.portrait-system .identity-v { right: 3%; bottom: 3%; color: transparent; -webkit-text-stroke: 1.5px var(--white); transform: translate(var(--identity-counter-x), var(--identity-counter-y)); }
+.portrait-system .identity-orbit {
+  position: absolute;
+  z-index: 3;
+  left: var(--identity-x);
+  top: var(--identity-y);
+  width: 34%;
+  aspect-ratio: 1;
+  border: 1px solid var(--white);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: left .08s linear, top .08s linear;
+  pointer-events: none;
+}
+.portrait-system .identity-orbit::after { content: ""; position: absolute; width: 7px; height: 7px; right: 8%; top: 12%; border-radius: 50%; background: var(--white); box-shadow: 0 0 12px rgba(255,255,255,.8); }
+.portrait-system .identity-frame { position: absolute; z-index: 1; width: 45%; height: 58%; left: 27%; top: 21%; border: 1px solid rgba(255,255,255,.32); transform: rotate(-17deg); text-decoration: none; }
+.portrait-system small,
+.portrait-system em { position: absolute; z-index: 5; font-family: var(--mono); font-size: .58rem; font-style: normal; line-height: 1; letter-spacing: 0; color: var(--gray-300); text-transform: uppercase; }
+.portrait-system .identity-code { left: 14px; bottom: 14px; }
+.portrait-system .identity-coordinate { right: 14px; top: 14px; }
+.portrait-system .identity-role { right: 14px; bottom: 14px; writing-mode: vertical-rl; transform: rotate(180deg); }
+@keyframes identity-rotate { to { transform: rotate(392deg); } }
+@keyframes identity-scan { 0%, 8% { transform: translateY(0); opacity: 0; } 18% { opacity: .42; } 82% { opacity: .42; } 92%, 100% { transform: translateY(calc(100cqw - 1px)); opacity: 0; } }
+html[data-motion="reduced"] .portrait-system::before,
+html[data-motion="reduced"] .portrait-system::after { animation: none; }
+html[data-motion="reduced"] .portrait-system::after { top: 50%; opacity: .18; }
 .about dl { margin: 0; border-top: 1px solid var(--rule); }
 .about dl div { padding: 18px 0; border-bottom: 1px solid var(--rule); }
 .about dt { font-family: var(--mono); font-size: .65rem; text-transform: uppercase; color: var(--gray-500); }

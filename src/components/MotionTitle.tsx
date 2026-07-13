@@ -119,6 +119,7 @@ export function MotionTitle({ as, text, preset, intensity, reduced, id, classNam
     : text;
 
   return <Tag
+    key={text}
     ref={(element) => { titleRef.current = element; }}
     id={id}
     className={["motion-title", className].filter(Boolean).join(" ")}
