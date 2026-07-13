@@ -42,9 +42,26 @@ const shaders = {
   `,
   display: `
     precision highp float; varying vec2 vUv; uniform sampler2D uTexture;
-    void main(){ float ink=clamp(texture2D(uTexture,vUv).r,0.0,1.0); ink=smoothstep(0.012,0.82,ink); float glow=pow(ink,0.62); gl_FragColor=vec4(vec3(glow),clamp(glow*0.92,0.0,0.92)); }
+    uniform float uProtection; uniform vec2 uSafeMin; uniform vec2 uSafeMax; uniform vec2 uFeather;
+    void main(){
+      float ink=clamp(texture2D(uTexture,vUv).r,0.0,1.0);
+      ink=smoothstep(0.012,0.82,ink);
+      float glow=pow(ink,0.62);
+      vec2 enter=smoothstep(uSafeMin,uSafeMin+uFeather,vUv);
+      vec2 leave=1.0-smoothstep(uSafeMax-uFeather,uSafeMax,vUv);
+      float safeMask=enter.x*enter.y*leave.x*leave.y;
+      float protectedGlow=glow*(1.0-uProtection*safeMask*0.82);
+      gl_FragColor=vec4(vec3(protectedGlow),clamp(protectedGlow*0.92,0.0,0.92));
+    }
   `,
 };
+
+export interface FluidVisualContext {
+  protection: number;
+  safeMin: THREE.Vector2;
+  safeMax: THREE.Vector2;
+  feather: THREE.Vector2;
+}
 
 interface DoubleTarget {
   read: THREE.WebGLRenderTarget;
@@ -74,6 +91,8 @@ export class FluidSimulation {
   private dyeHeight = 1;
   private viewportWidth = 1;
   private viewportHeight = 1;
+  private currentProtection = 0.2;
+  private targetProtection = 0.2;
 
   constructor(canvas: HTMLCanvasElement, private quality: FluidQuality) {
     this.renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: false, powerPreference: "high-performance" });
@@ -87,7 +106,13 @@ export class FluidSimulation {
       vorticity: material(shaders.vorticity, { uVelocity: { value: null }, uCurl: { value: null }, texelSize: { value: new THREE.Vector2() }, curl: { value: FLUID_CONFIG.curl }, dt: { value: 0.016 } }),
       pressure: material(shaders.pressure, { uPressure: { value: null }, uDivergence: { value: null }, texelSize: { value: new THREE.Vector2() } }),
       gradient: material(shaders.gradient, { uPressure: { value: null }, uVelocity: { value: null }, texelSize: { value: new THREE.Vector2() } }),
-      display: material(shaders.display, { uTexture: { value: null } }),
+      display: material(shaders.display, {
+        uTexture: { value: null },
+        uProtection: { value: this.currentProtection },
+        uSafeMin: { value: new THREE.Vector2(0.08, 0.04) },
+        uSafeMax: { value: new THREE.Vector2(0.92, 0.96) },
+        uFeather: { value: new THREE.Vector2(0.08, 0.1) },
+      }),
     };
     this.quad = new THREE.Mesh(this.geometry, this.materials.display);
     this.scene.add(this.quad);
@@ -159,7 +184,17 @@ export class FluidSimulation {
     this.render(pass, this.dye.write); this.dye.swap();
   }
 
+  setVisualContext(context: FluidVisualContext) {
+    this.targetProtection = THREE.MathUtils.clamp(context.protection, 0, 1);
+    this.materials.display.uniforms.uSafeMin.value.copy(context.safeMin);
+    this.materials.display.uniforms.uSafeMax.value.copy(context.safeMax);
+    this.materials.display.uniforms.uFeather.value.copy(context.feather);
+  }
+
   step(dt: number) {
+    const transition = 1 - Math.exp(-dt * 4.5);
+    this.currentProtection = THREE.MathUtils.lerp(this.currentProtection, this.targetProtection, transition);
+    this.materials.display.uniforms.uProtection.value = this.currentProtection;
     const texel = new THREE.Vector2(1 / this.simWidth, 1 / this.simHeight);
     const curl = this.materials.curl;
     curl.uniforms.uVelocity.value = this.velocity.read.texture; curl.uniforms.texelSize.value.copy(texel);

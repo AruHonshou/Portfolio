@@ -71,6 +71,44 @@ test("fluid canvas changes after pointer movement", async ({ page }, testInfo) =
   expect(Buffer.compare(before, after)).not.toBe(0);
 });
 
+test("fluid readability profile follows dense and protected sections", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "desktop fluid context");
+  await page.goto("/es");
+  const canvas = page.getByTestId("fluid-canvas");
+  await expect(canvas).toHaveAttribute("data-fluid-context", "hero");
+  await page.locator("#skills").evaluate((element) => {
+    document.documentElement.style.scrollBehavior = "auto";
+    element.scrollIntoView({ block: "center" });
+  });
+  await expect(canvas).toHaveAttribute("data-fluid-context", "skills");
+  await page.locator("#projects").evaluate((element) => element.scrollIntoView({ block: "start" }));
+  await expect(canvas).toHaveAttribute("data-fluid-context", "projects");
+  await page.locator("#contact").evaluate((element) => element.scrollIntoView({ block: "center" }));
+  await expect(canvas).toHaveAttribute("data-fluid-context", "contact");
+});
+
+test("long project titles stay intact in both languages", async ({ page }, testInfo) => {
+  for (const locale of ["es", "en"]) {
+    await page.goto(`/${locale}`);
+    const measurements = await page.evaluate(() => {
+      const compact = Array.from(document.querySelectorAll<HTMLElement>('.project-card[data-title-size="compact"]'));
+      const normal = document.querySelector<HTMLElement>('.project-card[data-title-size="normal"]');
+      return {
+        compactCount: compact.length,
+        compactWidth: compact[0]?.getBoundingClientRect().width ?? 0,
+        normalWidth: normal?.getBoundingClientRect().width ?? 0,
+        titles: compact.flatMap((card) => Array.from(card.querySelectorAll<HTMLElement>(".project-cover strong, .project-body h3")).map((title) => {
+          const style = getComputedStyle(title);
+          return { overflow: title.scrollWidth - title.clientWidth, overflowWrap: style.overflowWrap, wordBreak: style.wordBreak, text: title.textContent };
+        })),
+      };
+    });
+    expect(measurements.compactCount).toBeGreaterThan(0);
+    expect(measurements.titles.every((title) => title.overflow <= 1 && title.overflowWrap === "normal" && title.wordBreak === "normal")).toBe(true);
+    if (testInfo.project.name === "desktop") expect(measurements.compactWidth).toBeGreaterThan(measurements.normalWidth);
+  }
+});
+
 test("reduced motion and WebGL fallback preserve content", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/en");

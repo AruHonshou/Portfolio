@@ -27,8 +27,13 @@ function updateSeo(locale: Locale, content: PortfolioContent) {
   canonical.href = `${window.location.origin}/${locale}`;
 }
 
-function emitFluidImpulse(index = 1) {
-  window.dispatchEvent(new CustomEvent("portfolio-fluid-impulse", { detail: { index } }));
+function emitFluidImpulse(sectionId: string, index = 1) {
+  window.dispatchEvent(new CustomEvent("portfolio-fluid-impulse", { detail: { sectionId, index } }));
+}
+
+function projectTitleSize(name: string) {
+  const longestWord = Math.max(...name.split(/\s+/).map((word) => word.length));
+  return longestWord >= 13 || name.length >= 24 ? "compact" : "normal";
 }
 
 function useReducedMotion() {
@@ -102,7 +107,7 @@ function ProjectStory({ content, locale, reduced }: { content: PortfolioContent;
 
   return <section id="projects" className="projects-story" ref={storyRef} aria-labelledby="projects-title">
     <div className="projects-sticky"><div className="projects-header"><SectionHeading id="projects-title">{labels[locale].projects}</SectionHeading><span className="project-progress" aria-hidden="true" /></div>
-      <div className="project-track" ref={trackRef}>{content.projects.map((project, index) => <article className="project-card" key={project.id}>
+      <div className="project-track" ref={trackRef}>{content.projects.map((project, index) => <article className="project-card" data-title-size={projectTitleSize(project.name)} key={project.id}>
         <div className={`project-cover cover-${(index % 3) + 1}`} aria-hidden="true"><strong>{project.name}</strong><i /></div>
         <div className="project-body"><div><p className="eyebrow">{project.type}</p><h3>{project.name}</h3></div><p>{project.summary}</p>{project.impact && <p className="project-impact">{project.impact}</p>}
           <ul className="tech-list">{project.technologies.map((tech) => <li key={tech}>{tech}</li>)}</ul>
@@ -133,7 +138,7 @@ export function Portfolio({ initialLocale }: { initialLocale: Locale }) {
     const observer = new IntersectionObserver((entries) => entries.forEach((entry) => {
       if (!entry.isIntersecting) return;
       setActive(entry.target.id);
-      emitFluidImpulse(Math.max(sections.indexOf(entry.target.id as typeof sections[number]), 0) + 1);
+      emitFluidImpulse(entry.target.id, Math.max(sections.indexOf(entry.target.id as typeof sections[number]), 0) + 1);
     }), { rootMargin: "-35% 0px -55%" });
     document.querySelectorAll("main section[id]").forEach((section) => observer.observe(section));
     return () => observer.disconnect();
@@ -172,7 +177,7 @@ export function Portfolio({ initialLocale }: { initialLocale: Locale }) {
       <section id="hero" className="hero" aria-labelledby="hero-title">
         <div className="hero-meta"><span>CR / 09.93° N</span><span>{content.role}</span></div>
         <h1 id="hero-title" aria-label={content.name}>{nameParts.map((part) => <span className="hero-line" aria-hidden="true" key={part}><span className="hero-word">{part}</span></span>)}</h1>
-        <div className="hero-bottom"><p>{content.intro}</p><div className="hero-actions"><a className="button primary" href="#projects" onPointerEnter={() => emitFluidImpulse(8)}>{copy.viewProjects}<ArrowDown size={17} aria-hidden="true" /></a><a className="button secondary" href="#contact" onPointerEnter={() => emitFluidImpulse(9)}>{copy.contact}<ArrowUpRight size={17} aria-hidden="true" /></a></div></div>
+        <div className="hero-bottom"><p>{content.intro}</p><div className="hero-actions"><a className="button primary" href="#projects" onPointerEnter={() => emitFluidImpulse(active, 8)}>{copy.viewProjects}<ArrowDown size={17} aria-hidden="true" /></a><a className="button secondary" href="#contact" onPointerEnter={() => emitFluidImpulse(active, 9)}>{copy.contact}<ArrowUpRight size={17} aria-hidden="true" /></a></div></div>
         <a className="scroll-cue" href="#about"><span>{copy.scroll}</span><ArrowDown size={16} aria-hidden="true" /></a>
       </section>
 
