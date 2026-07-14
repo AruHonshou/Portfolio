@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { Portfolio } from "../../src/components/Portfolio";
 import type { Locale } from "../../src/content/types";
 
@@ -8,8 +7,14 @@ const descriptions: Record<Locale, string> = {
   en: "Software Engineer focused on fullstack development, applied AI, and QA automation.",
 };
 
-export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
-  const { lang } = await params;
+export function generateStaticParams() {
+  return [{ lang: "es" }, { lang: "en" }];
+}
+
+export const dynamicParams = false;
+
+export async function generateMetadata({ params }: { params: { lang: string } }): Promise<Metadata> {
+  const { lang } = params;
   const locale: Locale = lang === "en" ? "en" : "es";
   return {
     title: "Kendall Valverde Díaz · Software Engineer",
@@ -20,8 +25,7 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
   };
 }
 
-export default async function LocalizedPortfolio({ params }: { params: Promise<{ lang: string }> }) {
-  const { lang } = await params;
-  if (lang !== "es" && lang !== "en") notFound();
-  return <Portfolio initialLocale={lang} />;
+export default function LocalizedPortfolio({ params }: { params: { lang: string } }) {
+  const { lang } = params;
+  return <Portfolio initialLocale={lang === "en" ? "en" : "es"} />;
 }

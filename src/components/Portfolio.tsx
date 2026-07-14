@@ -16,20 +16,25 @@ const titlePresets: MotionPreset[] = ["rise", "fall", "scale", "blur", "flip"];
 const subscribeToHydration = () => () => {};
 
 function updateSeo(locale: Locale, content: PortfolioContent) {
+  const basePath = getBasePath();
   document.documentElement.lang = locale;
   document.title = `${content.name} · Software Engineer`;
   const description = locale === "es" ? "Software Engineer especializado en desarrollo fullstack, IA aplicada y QA Automation." : "Software Engineer focused on fullstack development, applied AI, and QA automation.";
   document.querySelector('meta[name="description"]')?.setAttribute("content", description);
   document.querySelector('meta[property="og:locale"]')?.setAttribute("content", locale === "es" ? "es_CR" : "en_US");
-  document.querySelector('meta[property="og:image"]')?.setAttribute("content", `${window.location.origin}/og.png`);
-  document.querySelector('meta[name="twitter:image"]')?.setAttribute("content", `${window.location.origin}/og.png`);
+  document.querySelector('meta[property="og:image"]')?.setAttribute("content", `${window.location.origin}${basePath}/og.png`);
+  document.querySelector('meta[name="twitter:image"]')?.setAttribute("content", `${window.location.origin}${basePath}/og.png`);
   let canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
   if (!canonical) { canonical = document.createElement("link"); canonical.rel = "canonical"; document.head.appendChild(canonical); }
-  canonical.href = `${window.location.origin}/${locale}`;
+  canonical.href = `${window.location.origin}${basePath}/${locale}`;
 }
 
 function emitFluidImpulse(sectionId: string, index = 1) {
   window.dispatchEvent(new CustomEvent("portfolio-fluid-impulse", { detail: { sectionId, index } }));
+}
+
+function getBasePath() {
+  return process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 }
 
 function projectTitleSize(name: string) {
@@ -242,7 +247,7 @@ export function Portfolio({ initialLocale }: { initialLocale: Locale }) {
 
   const changeLocale = (next: Locale) => {
     if (next === locale) return;
-    window.history.pushState({}, "", `/${next}${window.location.hash}`); setLocale(next); setMenuOpen(false);
+    window.history.pushState({}, "", `${getBasePath()}/${next}${window.location.hash}`); setLocale(next); setMenuOpen(false);
   };
   const navigate = () => setMenuOpen(false);
 
