@@ -1,19 +1,7 @@
-import { cp, mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const root = path.resolve("dist/client");
-const siteRoot = path.join(root, "Portfolio");
-await rm(siteRoot, { recursive: true, force: true });
-await mkdir(siteRoot, { recursive: true });
-
-for (const entry of ["es", "en", "index.html"]) {
-  await rename(path.join(root, entry), path.join(siteRoot, entry));
-}
-
-for (const entry of await readdir(root)) {
-  if (entry === "Portfolio" || entry === "es" || entry === "en" || entry === "index.html") continue;
-  await cp(path.join(root, entry), path.join(siteRoot, entry), { recursive: true });
-}
 
 async function prefixHtml(filePath) {
   const source = await readFile(filePath, "utf8");
@@ -34,5 +22,5 @@ async function walk(directory) {
   }
 }
 
-await walk(siteRoot);
-console.log("GitHub Pages artifact prepared: dist/client/Portfolio");
+await walk(root);
+console.log("GitHub Pages artifact prepared: dist/client");
