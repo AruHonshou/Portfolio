@@ -39,7 +39,7 @@ function getBasePath() {
 
 function projectTitleSize(name: string) {
   const longestWord = Math.max(...name.split(/\s+/).map((word) => word.length));
-  return longestWord >= 13 || name.length >= 24 ? "compact" : "normal";
+  return longestWord >= 9 || name.length >= 24 ? "compact" : "normal";
 }
 
 function useReducedMotion() {
